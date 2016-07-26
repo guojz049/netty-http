@@ -16,7 +16,9 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.DelimiterBasedFrameDecoder;
 import io.netty.handler.codec.Delimiters;
-import io.netty.handler.codec.LineBasedFrameDecoder;
+import io.netty.handler.codec.http.HttpContentCompressor;
+import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 import io.netty.handler.logging.LogLevel;
@@ -92,23 +94,31 @@ public class AbcsNettyHttpServer {
 				pipeline.addLast(new LoggingHandler(LogLevel.INFO));
 			}
 
-			// 首先添加文本分割解码器，分隔符为 \n 和 \r
+			// 文本分割解码器，分隔符为 \n 和 \r
 			pipeline.addLast(new DelimiterBasedFrameDecoder(8192, Delimiters.lineDelimiter()));
-			// 添加大内容解码器：1024*8 = 8kb
-			pipeline.addLast(new LineBasedFrameDecoder(8192));
-			// 添加 string 编码器
+			// string 编码器
 			pipeline.addLast(new StringEncoder(CharsetUtil.UTF_8));
-			// 添加 string 解码器
+			// String 解码器
 			pipeline.addLast(new StringDecoder(CharsetUtil.UTF_8));
-			// 添加支持以异步方式写操作大块数据的 handler.常配合 ChunkedInput 使用。具体查看 class 说明
+			// 支持以异步方式写操作大块数据的 handler.常配合 ChunkedInput 使用。具体查看 class 说明
 			pipeline.addLast(new ChunkedWriteHandler());
 
+			// ===== http about ===== start
+			{
+				// http content 和 msg 压缩 FIXME
+				pipeline.addLast(new HttpContentCompressor());
+
+				// http request 解码器和 response 编码器组合的编解码器
+				pipeline.addLast(new HttpServerCodec());
+				// 用于把 http content 和 http message 组合成单个 FullHttpRequest 或 FullHttpResponse
+				pipeline.addLast(new HttpObjectAggregator(1024 * 1024));
+			}
+
 			// ===== my business logic handler ==== start
-
-			// 添加文件读取的 handler
-			pipeline.addLast(new FileHandler());
-
-			// ===== my business logic handler ==== end
+			{
+				// 添加文件读取的 handler
+				pipeline.addLast(new FileHandler());
+			}
 		}
 	}
 }
