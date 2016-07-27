@@ -20,6 +20,7 @@ public class Main {
 		}
 
 		AbcsNettyHttpServerSetting setting = new AbcsNettyHttpServerSetting();
+		setting.setOpenConnectionLog(true).setOpenCors(true).setOpenIoLog(false);
 		new AbcsNettyHttpServer(setting).run();
 	}
 

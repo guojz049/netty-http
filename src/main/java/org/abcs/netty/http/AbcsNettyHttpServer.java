@@ -2,7 +2,7 @@ package org.abcs.netty.http;
 
 import java.net.InetAddress;
 
-import org.abcs.netty.http.handler.FileHandler;
+import org.abcs.netty.http.handler.ConverterPlugHandler;
 import org.apache.log4j.Logger;
 
 import io.netty.bootstrap.ServerBootstrap;
@@ -14,17 +14,15 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.codec.DelimiterBasedFrameDecoder;
-import io.netty.handler.codec.Delimiters;
 import io.netty.handler.codec.http.HttpContentCompressor;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
-import io.netty.handler.codec.string.StringDecoder;
-import io.netty.handler.codec.string.StringEncoder;
+import io.netty.handler.codec.http.cors.CorsConfig;
+import io.netty.handler.codec.http.cors.CorsConfigBuilder;
+import io.netty.handler.codec.http.cors.CorsHandler;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
-import io.netty.util.CharsetUtil;
 
 /**
  * @作者 Mitkey
@@ -53,9 +51,11 @@ public class AbcsNettyHttpServer {
 			ServerBootstrap bootstrap = new ServerBootstrap();
 			bootstrap.group(bossGroup, workerGroup)// 定义2个 EventLoop 组，boos 处理请求，worker 处理 io
 					.channel(NioServerSocketChannel.class) // 用于创建 channel 实例
-					.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10 * 1000)// 连接超时，单位毫秒
-					.option(ChannelOption.TCP_NODELAY, true)// tcp 不延迟
-					.option(ChannelOption.SO_BACKLOG, 128) // 积压数据长度
+					.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5 * 1000)// 连接超时，单位毫秒
+					.option(ChannelOption.TCP_NODELAY, true)// 关闭 Nagle算法,提高响应速度
+					.option(ChannelOption.SO_TIMEOUT, 5 * 1000)// 操作超时时间
+					.option(ChannelOption.SO_BACKLOG, 1024) // 完成 tcp 3 次握手后的最大请求队列，先进先出
+					.option(ChannelOption.SO_REUSEADDR, false)// 废弃的连接，立即回收。不可立即使用
 					.childOption(ChannelOption.SO_KEEPALIVE, false) // 长连接
 					.childHandler(new MyChannelInitializer());// 创建 childHandler 来处理每一个新连接请求，通过 initChannel() 方法
 
@@ -88,37 +88,28 @@ public class AbcsNettyHttpServer {
 		@Override
 		public void initChannel(SocketChannel ch) throws Exception {
 			ChannelPipeline pipeline = ch.pipeline();
-
+			// 是否开启每个连接的 io 操作日志
 			if (setting.isOpenIoLog()) {
-				// 开启每个连接的 I/O 日志
 				pipeline.addLast(new LoggingHandler(LogLevel.INFO));
 			}
-
-			// 文本分割解码器，分隔符为 \n 和 \r
-			pipeline.addLast(new DelimiterBasedFrameDecoder(8192, Delimiters.lineDelimiter()));
-			// string 编码器
-			pipeline.addLast(new StringEncoder(CharsetUtil.UTF_8));
-			// String 解码器
-			pipeline.addLast(new StringDecoder(CharsetUtil.UTF_8));
+			// http content 和 msg 压缩
+			pipeline.addLast(new HttpContentCompressor());
+			// http request 解码器和 response 编码器组合的编解码器
+			pipeline.addLast(new HttpServerCodec());
+			// 用于把 http content 和 http message 组合成单个 FullHttpRequest 或 FullHttpResponse
+			pipeline.addLast(new HttpObjectAggregator(1024 * 1024));
 			// 支持以异步方式写操作大块数据的 handler.常配合 ChunkedInput 使用。具体查看 class 说明
 			pipeline.addLast(new ChunkedWriteHandler());
-
-			// ===== http about ===== start
-			{
-				// http content 和 msg 压缩 FIXME
-				pipeline.addLast(new HttpContentCompressor());
-
-				// http request 解码器和 response 编码器组合的编解码器
-				pipeline.addLast(new HttpServerCodec());
-				// 用于把 http content 和 http message 组合成单个 FullHttpRequest 或 FullHttpResponse
-				pipeline.addLast(new HttpObjectAggregator(1024 * 1024));
+			// 是否开启跨域
+			if (setting.isOpenCors()) {
+				// 跨域所有资源（使用 *）、运行请求头中 origin 为 null、运行 cookie 使用
+				CorsConfig corsConfig = CorsConfigBuilder.forAnyOrigin().allowNullOrigin().allowCredentials().build();
+				// 添加跨域处理 handler
+				pipeline.addLast(new CorsHandler(corsConfig));
 			}
 
-			// ===== my business logic handler ==== start
-			{
-				// 添加文件读取的 handler
-				pipeline.addLast(new FileHandler());
-			}
+			// netty http 转换器 handler
+			pipeline.addLast(new ConverterPlugHandler());
 		}
 	}
 }

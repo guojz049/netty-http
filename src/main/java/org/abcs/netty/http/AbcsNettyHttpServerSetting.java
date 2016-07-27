@@ -13,6 +13,8 @@ public class AbcsNettyHttpServerSetting {
 	private boolean openConnectionLog = false;
 	/** 开启 IO 日志，默认关闭 */
 	private boolean openIoLog = false;
+	/** 开启跨域，默认关闭 */
+	private boolean openCors = false;
 
 	// ================================ setting and getting ================================
 	public int getPort() {
@@ -34,6 +36,13 @@ public class AbcsNettyHttpServerSetting {
 	}
 	public AbcsNettyHttpServerSetting setOpenIoLog(boolean openIoLog) {
 		this.openIoLog = openIoLog;
+		return this;
+	}
+	public boolean isOpenCors() {
+		return openCors;
+	}
+	public AbcsNettyHttpServerSetting setOpenCors(boolean openCors) {
+		this.openCors = openCors;
 		return this;
 	}
 
