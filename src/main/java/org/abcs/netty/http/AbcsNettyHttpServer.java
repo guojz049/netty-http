@@ -110,7 +110,7 @@ public class AbcsNettyHttpServer {
 			}
 
 			// netty http 转换器 handler
-			pipeline.addLast(new ConverterPlugHandler());
+			pipeline.addLast(new ConverterPlugHandler(setting));
 		}
 	}
 }
