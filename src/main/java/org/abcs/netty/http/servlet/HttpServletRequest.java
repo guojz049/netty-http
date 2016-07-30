@@ -25,6 +25,7 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -40,6 +41,7 @@ import io.netty.handler.codec.http.multipart.FileUpload;
 import io.netty.handler.codec.http.multipart.HttpDataFactory;
 import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData;
+import io.netty.util.CharsetUtil;
 
 /**
  * @作者 Mitkey
@@ -55,6 +57,7 @@ public class HttpServletRequest {
 	private Map<String, Cookie> cookiesMap;
 	private Map<String, String> headersMap;
 	private Map<String, Object> paramsMap;
+	private String content = null;
 	private boolean flagInitCookies = false;
 	private boolean flagInitHeaders = false;
 	private boolean flagInitParams = false;
@@ -175,9 +178,11 @@ public class HttpServletRequest {
 		if (method() == Method.Post) {
 			parsePostParams(paramsMap);
 		}
-		// 还有数据未解析 FIXME
-		// request.content();
-
+		// 解析特殊包
+		ByteBuf byteBuf = request.content();
+		if (byteBuf != null) {
+			content = byteBuf.toString(CharsetUtil.UTF_8);
+		}
 		flagInitParams = true;
 		return paramsMap;
 	}
@@ -293,6 +298,7 @@ public class HttpServletRequest {
 		result.put("isKeepAlive", isKeepAlive());
 		result.put("headers", JSON.toJSON(headers()));
 		result.put("params", JSON.toJSON(params()));
+		result.put("content", content == null ? "【no send】" : content);
 		JSONArray array = new JSONArray();
 		for (Entry<String, Cookie> entry : cookies().entrySet()) {
 			array.add(entry.getValue().toString());
