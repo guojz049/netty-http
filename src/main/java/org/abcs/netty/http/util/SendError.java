@@ -7,6 +7,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_IMPLEMENTED;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 import java.util.Arrays;
@@ -46,6 +47,10 @@ public class SendError {
 	/** 500 内部服务器错误 */
 	public static void sendServerError(ChannelHandlerContext ctx, Object... des) {
 		sendError(ctx, INTERNAL_SERVER_ERROR, des);
+	}
+	/** 501 服务器未实行 */
+	public static void sendNoImplemented(ChannelHandlerContext ctx, Object... des) {
+		sendError(ctx, NOT_IMPLEMENTED, des);
 	}
 
 	private static void sendError(ChannelHandlerContext ctx, HttpResponseStatus status, Object... des) {
