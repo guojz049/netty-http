@@ -160,8 +160,8 @@ public class HttpServletRequest {
 		return HttpUtil.isKeepAlive(request);
 	}
 	/** 获取该请求使用的编码 */
-	public Charset charset(Charset defCharset) {
-		return HttpUtil.getCharset(request, defCharset);
+	public Charset charset() {
+		return HttpUtil.getCharset(request);
 	}
 	/** 请求参数：获取 get 参数和 post 参数都是该入口 */
 	public Map<String, Object> params() {
@@ -278,21 +278,28 @@ public class HttpServletRequest {
 				System.err.println("params " + attribute.getName() + " value ready Error:" + e.getMessage());
 		}
 	}
-	@Override
-	public String toString() {
+
+	public JSONObject toJson() {
+		// 若有新的描述信息，需要加入 TODO
 		JSONObject result = new JSONObject();
-		result.put("channelId", ctx.channel().id());
+		result.put("channelId", ctx.channel().id().toString());
 		result.put("ip", ip());
 		result.put("uri", uri());
 		result.put("path", path());
-		result.put("protocol", protocol());
+		result.put("charset", charset());
+		result.put("protocol", protocol().protocolName());
 		result.put("method", method());
 		result.put("isKeepAlive", isKeepAlive());
 		result.put("headers", JSON.toJSON(headers()));
 		result.put("cookies", JSON.toJSON(cookies()));
 		result.put("params", JSON.toJSON(params()));
-		return result.toString();
+		return result;
 	}
+	@Override
+	public String toString() {
+		return JSON.toJSONString(toJson(), true);
+	}
+
 	public static HttpServletRequest builder(ChannelHandlerContext ctx, FullHttpRequest request) {
 		return new HttpServletRequest(ctx, request);
 	}
