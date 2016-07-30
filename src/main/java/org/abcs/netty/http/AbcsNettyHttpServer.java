@@ -7,9 +7,11 @@ import org.apache.log4j.Logger;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -101,7 +103,8 @@ public class AbcsNettyHttpServer {
 			pipeline.addLast(new HttpObjectAggregator(1024 * 1024));
 			// 支持以异步方式写操作大块数据的 handler.常配合 ChunkedInput 使用。具体查看 class 说明
 			pipeline.addLast(new ChunkedWriteHandler());
-			// 是否开启跨域
+			// 是否开启跨域。若使用了原始自带的跨域处理 handler，则向客户端 write 数据时会 FLUSH 2 次
+			// 具体代码为 CorsHandler 中的 public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise promise)
 			if (setting.isOpenCors()) {
 				// 跨域所有资源（使用 *）、运行请求头中 origin 为 null、运行 cookie 使用
 				CorsConfig corsConfig = CorsConfigBuilder.forAnyOrigin().allowNullOrigin().allowCredentials().build();
