@@ -34,7 +34,7 @@ public abstract class HttpServlet {
 		result.put("response", response.toJson());
 
 		response.content(JSON.toJSONString(result, true));
-		response.sendOk();
+		response.sendCustom();
 	}
 
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws Exception {
@@ -43,7 +43,7 @@ public abstract class HttpServlet {
 		result.put("response", response.toJson());
 
 		response.content(JSON.toJSONString(result, true));
-		response.sendOk();
+		response.sendCustom();
 	}
 
 	public static enum Method {

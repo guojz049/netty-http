@@ -22,6 +22,7 @@ import java.util.Set;
 import org.abcs.netty.http.servlet.HttpServlet.Method;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 
 import io.netty.channel.ChannelHandlerContext;
@@ -287,17 +288,17 @@ public class HttpServletRequest {
 		result.put("uri", uri());
 		result.put("path", path());
 		result.put("charset", charset());
-		result.put("protocol", protocol().protocolName());
+		result.put("protocol", protocol().text());
 		result.put("method", method());
 		result.put("isKeepAlive", isKeepAlive());
 		result.put("headers", JSON.toJSON(headers()));
-		result.put("cookies", JSON.toJSON(cookies()));
 		result.put("params", JSON.toJSON(params()));
+		JSONArray array = new JSONArray();
+		for (Entry<String, Cookie> entry : cookies().entrySet()) {
+			array.add(entry.getValue().toString());
+		}
+		result.put("cookies", array);
 		return result;
-	}
-	@Override
-	public String toString() {
-		return JSON.toJSONString(toJson(), true);
 	}
 
 	public static HttpServletRequest builder(ChannelHandlerContext ctx, FullHttpRequest request) {

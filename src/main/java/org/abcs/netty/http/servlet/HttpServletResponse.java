@@ -28,9 +28,10 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
@@ -48,50 +49,50 @@ public class HttpServletResponse {
 	private static final SimpleDateFormat Date_Format = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.US);
 
 	private ChannelHandlerContext ctx;
-	private FullHttpResponse response;
-	private Charset charset;
+	private HttpVersion version;
+	private HttpResponseStatus status;
+	private HttpHeaders headers;
 	private ByteBuf content;
+	private Charset charset;
+	private boolean keepAlive = false;
 
-	private HttpServletResponse(ChannelHandlerContext ctx, FullHttpRequest request) {
+	private HttpServletResponse(ChannelHandlerContext ctx, HttpServletRequest request) {
 		this(ctx, request, CharsetUtil.UTF_8);
 	}
-	public HttpServletResponse(ChannelHandlerContext ctx, FullHttpRequest request, Charset charset) {
+	public HttpServletResponse(ChannelHandlerContext ctx, HttpServletRequest request, Charset charset) {
 		this.ctx = ctx;
-		this.charset = charset;
+		this.version = HttpVersion.HTTP_1_1;
+		this.status = HttpResponseStatus.OK;
+		this.headers = new DefaultHttpHeaders();
 		this.content = Unpooled.EMPTY_BUFFER;
-		this.response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, content);
-		keepAlive(HttpUtil.isKeepAlive(request));
+		this.charset = charset;
+		this.keepAlive = request.isKeepAlive();
 	}
-
 	public HttpServletResponse contentTypeJson() {
-		setContentType("application/json");
+		headers.set(CONTENT_TYPE, "application/json; charset=" + charset);
 		return this;
 	}
 	public HttpServletResponse contentTypeTextPlain() {
-		setContentType("text/plain");
+		headers.set(CONTENT_TYPE, "text/plain; charset=" + charset);
 		return this;
 	}
 	public HttpServletResponse contentTypeTextHtml() {
-		setContentType("text/html");
+		headers.set(CONTENT_TYPE, "text/html; charset=" + charset);
 		return this;
 	}
 	public HttpServletResponse contentTypeTextXml() {
-		setContentType("text/xml");
-		return this;
-	}
-	public HttpServletResponse contentLength(int length) {
-		response.headers().set(HttpHeaderNames.CONTENT_LENGTH, length);
+		headers.set(CONTENT_TYPE, "text/xml; charset=" + charset);
 		return this;
 	}
 	public HttpServletResponse cookie(Cookie cookie) {
 		if (cookie == null) {
 			throw new IllegalArgumentException("add cookie can not null");
 		}
-		response.headers().add(HttpHeaderNames.SET_COOKIE, ServerCookieEncoder.STRICT.encode(cookie));
+		headers.add(HttpHeaderNames.SET_COOKIE, ServerCookieEncoder.STRICT.encode(cookie));
 		return this;
 	}
 	public HttpServletResponse date(Date date) {
-		response.headers().set(HttpHeaderNames.DATE, Date_Format.format(date));
+		headers.set(HttpHeaderNames.DATE, Date_Format.format(date));
 		return this;
 	}
 	public HttpServletResponse dataAndCache(long lastModify, int cacheSeconds) {
@@ -100,23 +101,22 @@ public class HttpServletResponse {
 		time.add(Calendar.SECOND, cacheSeconds);// 当前时间加缓存时间
 		String expiresString = Date_Format.format(time.getTime());
 
-		response.headers().set(DATE, dateString);// 请求时间头
-		response.headers().set(EXPIRES, expiresString);// 有效时间头。即缓存
-		response.headers().set(CACHE_CONTROL, "private, max-age=" + cacheSeconds);
-		response.headers().set(LAST_MODIFIED, Date_Format.format(new Date(lastModify)));
-
+		headers.set(DATE, dateString);// 请求时间头
+		headers.set(EXPIRES, expiresString);// 有效时间头。即缓存
+		headers.set(CACHE_CONTROL, "private, max-age=" + cacheSeconds);
+		headers.set(LAST_MODIFIED, Date_Format.format(new Date(lastModify)));
 		return this;
 	}
 	public HttpServletResponse httpVersion(HttpVersion version) {
-		response.setProtocolVersion(version);
+		this.version = version;
 		return this;
 	}
 	public HttpServletResponse status(HttpResponseStatus status) {
-		response.setStatus(status);
+		this.status = status;
 		return this;
 	}
 	public HttpServletResponse keepAlive(boolean keepAlive) {
-		HttpUtil.setKeepAlive(response, keepAlive);
+		this.keepAlive = keepAlive;
 		return this;
 	}
 
@@ -127,29 +127,28 @@ public class HttpServletResponse {
 	}
 	public HttpServletResponse content(JSONArray array) {
 		contentTypeJson();
-		byte[] bytes = array.toJSONString().getBytes(charset);
-		content = Unpooled.copiedBuffer(bytes);
+		content(array.toJSONString());
 		return this;
 	}
 	public HttpServletResponse content(JSONObject object) {
 		contentTypeJson();
-		byte[] bytes = object.toJSONString().getBytes(charset);
-		content = Unpooled.copiedBuffer(bytes);
+		content(object.toJSONString());
 		return this;
 	}
 
-	public void sendOk() {
-		ChannelFuture future = ctx.writeAndFlush(response.replace(content));
-		if (!HttpUtil.isKeepAlive(response)) {
+	public void sendCustom() {
+		ChannelFuture future = ctx.writeAndFlush(setUpResponse(false));
+		if (!keepAlive) {
 			future.addListener(ChannelFutureListener.CLOSE);
 		}
 	}
 
 	/** 302 重定向 */
 	public void sendRedirect(String newUri) {
-		response.setStatus(HttpResponseStatus.FOUND);
-		response.headers().set(HttpHeaderNames.LOCATION, newUri);
-		ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+		status(HttpResponseStatus.FOUND);
+		headers.set(HttpHeaderNames.LOCATION, newUri);
+		// 重定向需要关闭 chanel
+		ctx.writeAndFlush(setUpResponse(true)).addListener(ChannelFutureListener.CLOSE);
 	}
 	/** 403 已接受请求，但拒绝执行 */
 	public void sendForbidden(Object... des) {
@@ -175,28 +174,48 @@ public class HttpServletResponse {
 	public void sendNoImplemented(Object... des) {
 		sendError(NOT_IMPLEMENTED, des);
 	}
-
-	private void setContentType(String type) {
-		response.headers().set(CONTENT_TYPE, type + "; charset=" + charset);
+	public JSONObject toJson() {
+		// 若有新的描述信息，需要加入 TODO
+		JSONObject result = new JSONObject();
+		result.put("channelId", ctx.channel().id().toString());
+		result.put("headers", JSON.toJSON(headers));
+		result.put("content-encoding", charset);
+		result.put("content", content.toString(charset));
+		result.put("protocol", version.text());
+		result.put("keepAlive", keepAlive);
+		result.put("status", status.toString());
+		return result;
 	}
+	@Override
+	public String toString() {
+		return JSON.toJSONString(toJson(), true);
+	}
+
 	private void sendError(HttpResponseStatus status, Object... des) {
 		// 构建错误信息
 		JSONObject result = new JSONObject();
 		result.put("status", status);
 		result.put("error", JSON.toJSON(des));
 
-		content(result);
-		contentTypeTextPlain();
-		contentLength(response.content().readableBytes());
+		// 设置信息
+		status(status).content(result.toJSONString());
 
 		// 以错误状态信息响应给客户端，需要关闭连接
-		ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+		ctx.writeAndFlush(setUpResponse(true)).addListener(ChannelFutureListener.CLOSE);
+	}
+	private FullHttpResponse setUpResponse(boolean close) {
+		headers.set(HttpHeaderNames.CONTENT_LENGTH, content.readableBytes());
+		headers.set(HttpHeaderNames.CONTENT_ENCODING, charset);
+
+		FullHttpResponse response = new DefaultFullHttpResponse(version, status, content, headers, new DefaultHttpHeaders());
+		HttpUtil.setKeepAlive(response, !close && keepAlive);
+		return response;
 	}
 
-	public static HttpServletResponse builder(ChannelHandlerContext ctx, FullHttpRequest request) {
+	public static HttpServletResponse builder(ChannelHandlerContext ctx, HttpServletRequest request) {
 		return new HttpServletResponse(ctx, request);
 	}
-	public static HttpServletResponse builder(ChannelHandlerContext ctx, FullHttpRequest request, Charset charset) {
+	public static HttpServletResponse builder(ChannelHandlerContext ctx, HttpServletRequest request, Charset charset) {
 		return new HttpServletResponse(ctx, request, charset);
 	}
 
