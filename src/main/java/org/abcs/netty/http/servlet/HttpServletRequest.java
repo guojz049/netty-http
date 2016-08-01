@@ -31,7 +31,6 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpUtil;
-import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
@@ -72,12 +71,15 @@ public class HttpServletRequest {
 		this.headersMap = new HashMap<String, String>();
 		this.paramsMap = new HashMap<String, Object>();
 	}
+	/** netty 原生的 FullHttpRequest */
 	public FullHttpRequest nettyRequest() {
 		return request;
 	}
+	/** netty 所有 channel 的上下文对象 */
 	public ChannelHandlerContext handlerContext() {
 		return ctx;
 	}
+	/** http 请求方法的类型 */
 	public Method method() {
 		HttpMethod method = request.method();
 		if (method == GET) {
@@ -88,9 +90,11 @@ public class HttpServletRequest {
 			return Method.Other;
 		}
 	}
+	/** uri（带参数的路径）。如 http://127.0.0.1:8080/?name=mitkey 中的 uri 为 /?name=mitkey */
 	public String uri() {
 		return request.uri();
 	}
+	/** path（不带参数的路径）。如 http://127.0.0.1:8080/?name=mitkey 中的 path 为 / */
 	public String path() {
 		URI tempUri = null;
 		try {
@@ -100,6 +104,7 @@ public class HttpServletRequest {
 		}
 		return tempUri == null ? null : tempUri.getPath();
 	}
+	/** ip 地址 */
 	public String ip() {
 		String ip = request.headers().get("X-Forwarded-For");
 		if (ip == null || ip.trim().length() == 0) {
@@ -119,9 +124,11 @@ public class HttpServletRequest {
 		}
 		return ip;
 	}
-	public HttpVersion protocol() {
-		return request.protocolVersion();
+	/** http 协议的版本：1.0 或 1.1 */
+	public String protocol() {
+		return request.protocolVersion().text();
 	}
+	/** 请求头信息 */
 	public Map<String, String> headers() {
 		if (flagInitHeaders) {
 			return headersMap;
@@ -138,6 +145,7 @@ public class HttpServletRequest {
 		flagInitHeaders = true;
 		return headersMap;
 	}
+	/** 客户端请求头中携带的 cookies */
 	public Map<String, Cookie> cookies() {
 		if (flagInitCookies) {
 			return cookiesMap;
@@ -198,6 +206,7 @@ public class HttpServletRequest {
 	public boolean contentTypeIsTextPlain() {
 		return request.headers().contains(CONTENT_TYPE, TEXT_PLAIN, true);
 	}
+	/** 解析 post 请求特有的参数 */
 	private void parsePostParams(Map<String, Object> targetParamsMap) {
 		HttpPostRequestDecoder decoder = null;
 		try {
@@ -237,6 +246,7 @@ public class HttpServletRequest {
 			}
 		}
 	}
+	/** 解析 get 请求中 uri 中携带的参数 */
 	private void parseGetParams(Map<String, Object> targetParamsMap) {
 		QueryStringDecoder decoderQuery = new QueryStringDecoder(uri());
 		for (Entry<String, List<String>> attr : decoderQuery.parameters().entrySet()) {
@@ -248,6 +258,7 @@ public class HttpServletRequest {
 			}
 		}
 	}
+	/** 转换文件上传的参数与内容 */
 	private void converFileUpload(InterfaceHttpData httpData, Map<String, Object> targetParamsMap) {
 		// 判断该 key 对应数据类型时，使用 obj instanceof File 或 obj.getClass().isArray()
 		FileUpload fileUpload = (FileUpload) httpData;
@@ -274,6 +285,7 @@ public class HttpServletRequest {
 			}
 		}
 	}
+	/** 转换 post 请求中普通参数与内容 */
 	private void converAttribute(InterfaceHttpData httpData, Map<String, Object> targetParamsMap) {
 		// 若 Attribute 的实例是 DiskAttribute，则调用 getVaule 可能抛出 io 异常。一般应用下不会
 		Attribute attribute = (Attribute) httpData;
@@ -293,7 +305,7 @@ public class HttpServletRequest {
 		result.put("uri", uri());
 		result.put("path", path());
 		result.put("charset", charset());
-		result.put("protocol", protocol().text());
+		result.put("protocol", protocol());
 		result.put("method", method());
 		result.put("isKeepAlive", isKeepAlive());
 		result.put("headers", JSON.toJSON(headers()));
