@@ -16,6 +16,8 @@ import io.netty.util.internal.SystemPropertyUtil;
  * @版本 xx
  */
 public class AbcsNettyHttpServerSetting {
+	public static final String MappingAll = "/*";
+
 	/** 服务端口，默认为 8080 */
 	private int port = 8080;
 	/** 资源的根目录，默认与工作目录同级 */
