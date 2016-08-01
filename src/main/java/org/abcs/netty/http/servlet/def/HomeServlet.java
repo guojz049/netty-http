@@ -22,7 +22,6 @@ public class HomeServlet extends HttpServlet {
 		file = new File(resource.getFile());
 	}
 
-	// 默认是显示主页。当 带有参数 op=file 时，才进入 fileServlet
 	@Override
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws Exception {
 		response.sendForbidden();

@@ -266,7 +266,7 @@ public class HttpServletResponse {
 	private void sendError(HttpResponseStatus status, Object... des) {
 		// 构建错误信息
 		JSONObject result = new JSONObject();
-		result.put("status", status);
+		result.put("status", status.toString());
 		result.put("error", JSON.toJSON(des));
 
 		// 设置信息
