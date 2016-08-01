@@ -49,17 +49,6 @@ public class ConverterPlugHandler extends SimpleChannelInboundHandler<FullHttpRe
 			ctx.write(new DefaultFullHttpResponse(HTTP_1_1, CONTINUE));
 		}
 
-		// if ("/".equals(uri)) {
-		// // 主页
-		// // TODO
-		// return;
-		// }
-		// if ("/favicon.ico".equals(uri)) {
-		// // 主页的 icon
-		// // TODO
-		// return;
-		// }
-
 		// 构建 request 和 response
 		HttpServletRequest httpServletRequest = HttpServletRequest.builder(ctx, request);
 		HttpServletResponse httpServletResponse = HttpServletResponse.builder(ctx, httpServletRequest);
@@ -77,7 +66,6 @@ public class ConverterPlugHandler extends SimpleChannelInboundHandler<FullHttpRe
 		JSONObject result = new JSONObject();
 		result.put("request", httpServletRequest.toJson());
 		result.put("response", httpServletResponse.toJson());
-
 		throw new RuntimeException("服务器逻辑错误，不应该进入该流程。 request 与 response：" + JSON.toJSONString(result, true));
 	}
 

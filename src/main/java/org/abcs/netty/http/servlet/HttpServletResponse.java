@@ -205,21 +205,6 @@ public class HttpServletResponse {
 		}
 	}
 
-	private static final class FileDownloadProgressiveFutureListener implements ChannelProgressiveFutureListener {
-		@Override
-		public void operationProgressed(ChannelProgressiveFuture future, long progress, long total) {
-			if (total < 0) { // total unknown
-				LOGGER.info(future.channel() + " download transfer progress：" + progress);
-			} else {
-				LOGGER.info(future.channel() + " download transfer progress：" + progress + " / " + total);
-			}
-		}
-		@Override
-		public void operationComplete(ChannelProgressiveFuture future) {
-			LOGGER.info(future.channel() + " download transfer complete.");
-		}
-	}
-
 	/** 302 重定向 */
 	public void sendRedirect(String newUri) {
 		status(HttpResponseStatus.FOUND);
@@ -298,6 +283,21 @@ public class HttpServletResponse {
 		FullHttpResponse response = new DefaultFullHttpResponse(version, status, tempByteBuf, headers, new DefaultHttpHeaders());
 		HttpUtil.setKeepAlive(response, !close && keepAlive);
 		return response;
+	}
+
+	private static final class FileDownloadProgressiveFutureListener implements ChannelProgressiveFutureListener {
+		@Override
+		public void operationProgressed(ChannelProgressiveFuture future, long progress, long total) {
+			if (total < 0) { // total unknown
+				LOGGER.info(future.channel() + " download transfer progress：" + progress);
+			} else {
+				LOGGER.info(future.channel() + " download transfer progress：" + progress + " / " + total);
+			}
+		}
+		@Override
+		public void operationComplete(ChannelProgressiveFuture future) {
+			LOGGER.info(future.channel() + " download transfer complete.");
+		}
 	}
 
 	public static HttpServletResponse builder(ChannelHandlerContext ctx, HttpServletRequest request) {
