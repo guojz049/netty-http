@@ -27,7 +27,6 @@ import javax.activation.MimetypesFileTypeMap;
 import org.apache.log4j.Logger;
 
 import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 
 import io.netty.buffer.ByteBuf;
@@ -73,6 +72,8 @@ public class HttpServletResponse {
 	private Object content;
 	private Charset charset;
 	private boolean keepAlive = false;
+	// TODO 配置为只能发送一次
+	private boolean isSended = false;
 
 	private HttpServletResponse(ChannelHandlerContext ctx, HttpServletRequest request) {
 		this(ctx, request, CharsetUtil.UTF_8);
@@ -87,28 +88,35 @@ public class HttpServletResponse {
 		this.charset = charset;
 		this.keepAlive = request.isKeepAlive();
 	}
+	/** 自定义 httpRequest */
 	public HttpServletRequest servletRequest() {
 		return servletRequest;
 	}
+	/** 响应的头信息 */
 	public HttpHeaders headers() {
 		return headers;
 	}
+	/** 设置 contentType 为 application/json */
 	public HttpServletResponse contentTypeJson() {
 		headers.set(CONTENT_TYPE, "application/json; charset=" + charset);
 		return this;
 	}
+	/** 设置 contentType 为 text/plain */
 	public HttpServletResponse contentTypeTextPlain() {
 		headers.set(CONTENT_TYPE, "text/plain; charset=" + charset);
 		return this;
 	}
+	/** 设置 contentType 为 text/html */
 	public HttpServletResponse contentTypeTextHtml() {
 		headers.set(CONTENT_TYPE, "text/html; charset=" + charset);
 		return this;
 	}
+	/** 设置 contentType 为 text/xml */
 	public HttpServletResponse contentTypeTextXml() {
 		headers.set(CONTENT_TYPE, "text/xml; charset=" + charset);
 		return this;
 	}
+	/** 先客户端写入 cookie */
 	public HttpServletResponse cookie(Cookie cookie) {
 		if (cookie == null) {
 			throw new IllegalArgumentException("add cookie can not null");
@@ -116,10 +124,12 @@ public class HttpServletResponse {
 		headers.add(HttpHeaderNames.SET_COOKIE, ServerCookieEncoder.STRICT.encode(cookie));
 		return this;
 	}
+	/** 设置日期信息 */
 	public HttpServletResponse date(Date date) {
 		headers.set(HttpHeaderNames.DATE, Date_Format.format(date));
 		return this;
 	}
+	/** 设置日期和缓存信息 */
 	public HttpServletResponse dataAndCache(long lastModify, int cacheSeconds) {
 		Calendar time = Calendar.getInstance();
 		String dateString = Date_Format.format(time.getTime());
@@ -132,39 +142,40 @@ public class HttpServletResponse {
 		headers.set(LAST_MODIFIED, Date_Format.format(new Date(lastModify)));
 		return this;
 	}
+	/** 设置响应的 http 协议版本 */
 	public HttpServletResponse httpVersion(HttpVersion version) {
 		this.version = version;
 		return this;
 	}
+	/** 设置响应状态码 */
 	public HttpServletResponse status(HttpResponseStatus status) {
 		this.status = status;
 		return this;
 	}
+	/** 设置是否为长连接 */
 	public HttpServletResponse keepAlive(boolean keepAlive) {
 		this.keepAlive = keepAlive;
 		return this;
 	}
-
+	/** 响应内容为 file（文件） */
 	public HttpServletResponse content(File file) {
 		content = file;
 		return this;
 	}
+	/** 响应内容为普通文本 */
 	public HttpServletResponse content(String str) {
 		contentTypeTextPlain();
 		content = Unpooled.copiedBuffer(str, charset);
 		return this;
 	}
-	public HttpServletResponse content(JSONArray array) {
+	/** 响应内容为json */
+	public HttpServletResponse content(JSON array) {
 		contentTypeJson();
 		content(array.toJSONString());
 		return this;
 	}
-	public HttpServletResponse content(JSONObject object) {
-		contentTypeJson();
-		content(object.toJSONString());
-		return this;
-	}
-
+	// TODO
+	/** 自定义发送内容，常用 */
 	public void sendCustom() throws Exception {
 		ChannelFuture future;
 		if (content instanceof File) {
@@ -257,10 +268,6 @@ public class HttpServletResponse {
 		result.put("keepAlive", keepAlive);
 		result.put("status", status.toString());
 		return result;
-	}
-	@Override
-	public String toString() {
-		return JSON.toJSONString(toJson(), true);
 	}
 
 	private void sendError(HttpResponseStatus status, Object... des) {
