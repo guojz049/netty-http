@@ -85,7 +85,6 @@ public class FileServlet extends HttpServlet {
 		}
 
 		response.content(file);
-		response.sendCustom();
 	}
 
 	private boolean checkModifySince(HttpServletResponse response, File file) throws ParseException {
@@ -131,7 +130,6 @@ public class FileServlet extends HttpServlet {
 		response.keepAlive(false);
 		response.content(buf.toString());
 		response.contentTypeTextHtml();
-		response.sendCustom();
 	}
 
 	// uri 安全监测

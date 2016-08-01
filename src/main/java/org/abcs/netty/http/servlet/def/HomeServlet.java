@@ -30,7 +30,6 @@ public class HomeServlet extends HttpServlet {
 	@Override
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws Exception {
 		response.content(file);
-		response.sendCustom();
 	}
 
 }

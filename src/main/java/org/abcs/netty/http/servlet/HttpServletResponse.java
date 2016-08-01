@@ -72,7 +72,6 @@ public class HttpServletResponse {
 	private Object content;
 	private Charset charset;
 	private boolean keepAlive = false;
-	// TODO 配置为只能发送一次
 	private boolean isSended = false;
 
 	private HttpServletResponse(ChannelHandlerContext ctx, HttpServletRequest request) {
@@ -169,88 +168,44 @@ public class HttpServletResponse {
 		return this;
 	}
 	/** 响应内容为json */
-	public HttpServletResponse content(JSON array) {
+	public HttpServletResponse content(JSON json) {
 		contentTypeJson();
-		content(array.toJSONString());
+		content(json.toJSONString());
 		return this;
-	}
-	// TODO
-	/** 自定义发送内容，常用 */
-	public void sendCustom() throws Exception {
-		ChannelFuture future;
-		if (content instanceof File) {
-			// 文件
-			File file = (File) content;
-			try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
-				long fileLength = raf.length();
-
-				// 设置内容长度
-				headers.set(CONTENT_LENGTH, fileLength);
-				// 设置文件类型
-				headers.set(CONTENT_TYPE, new MimetypesFileTypeMap().getContentType(file.getPath()));
-				// 设置缓存
-				dataAndCache(file.lastModified(), Cache_Seconds);
-
-				// 写入包含文件类型描述相关信息的 response 。不需要包含 content
-				HttpResponse response = new DefaultHttpResponse(version, status, headers);
-				if (keepAlive) {
-					HttpUtil.setKeepAlive(response, true);
-				}
-				ctx.write(response);
-
-				// 写入具体文件内容,HttpChunkedInput 内部包含结束标记 LastHttpContent。但是不知道 write 没有
-				HttpChunkedInput chunkedInput = new HttpChunkedInput(new ChunkedFile(raf, 0, fileLength, 8192));
-				// 使用新的进程进行写入操作
-				ChannelProgressivePromise promise = ctx.newProgressivePromise();
-				// 文件下载进度监听
-				FileDownloadProgressiveFutureListener listener = new FileDownloadProgressiveFutureListener(file);
-				future = ctx.writeAndFlush(chunkedInput, promise).addListener(listener);
-			}
-		} else {
-			// 普通文本
-			future = ctx.writeAndFlush(setUpResponse(false));
-		}
-
-		if (!keepAlive) {
-			future.addListener(ChannelFutureListener.CLOSE);
-		}
 	}
 
 	/** 302 重定向 */
 	public void sendRedirect(String newUri) {
-		status(HttpResponseStatus.FOUND);
-		headers.set(HttpHeaderNames.LOCATION, newUri);
 		// 重定向需要关闭 chanel
-		ctx.writeAndFlush(setUpResponse(true)).addListener(ChannelFutureListener.CLOSE);
+		status(HttpResponseStatus.FOUND).keepAlive(false).headers().set(HttpHeaderNames.LOCATION, newUri);
 	}
 	/** 403 已接受请求，但拒绝执行 */
 	public void sendForbidden(Object... des) {
-		sendError(FORBIDDEN, des);
+		status(FORBIDDEN).keepAlive(false).content(JSON.toJSONString(des));
 	}
 	/** 404 未找到资源 */
 	public void sendNotFound(Object... des) {
-		sendError(NOT_FOUND, des);
+		status(NOT_FOUND).keepAlive(false).content(JSON.toJSONString(des));
 	}
 	/** 405 header 的 method 错误 */
 	public void sendMethodError(Object... des) {
-		sendError(METHOD_NOT_ALLOWED, des);
+		status(METHOD_NOT_ALLOWED).keepAlive(false).content(JSON.toJSONString(des));
 	}
 	/** 400 错误请求 */
 	public void sendBadRequest(Object... des) {
-		sendError(BAD_REQUEST, des);
+		status(BAD_REQUEST).keepAlive(false).content(JSON.toJSONString(des));
 	}
 	/** 500 内部服务器错误 */
 	public void sendServerError(Object... des) {
-		sendError(INTERNAL_SERVER_ERROR, des);
+		status(INTERNAL_SERVER_ERROR).keepAlive(false).content(JSON.toJSONString(des));
 	}
 	/** 501 服务器未实行 */
 	public void sendNoImplemented(Object... des) {
-		sendError(NOT_IMPLEMENTED, des);
+		status(NOT_IMPLEMENTED).keepAlive(false).content(JSON.toJSONString(des));
 	}
 	/** 304 未修改该文件 */
 	public void sendNotModified(Object... des) {
-		date(new Date());
-		sendError(NOT_MODIFIED, des);
+		date(new Date()).status(NOT_MODIFIED).keepAlive(false).content(JSON.toJSONString(des).toString());
 	}
 	public JSONObject toJson() {
 		// 若有新的描述信息，需要加入 TODO
@@ -270,26 +225,62 @@ public class HttpServletResponse {
 		return result;
 	}
 
-	private void sendError(HttpResponseStatus status, Object... des) {
-		// 构建错误信息
-		JSONObject result = new JSONObject();
-		result.put("status", status.toString());
-		result.put("error", JSON.toJSON(des));
+	/** 结构本身会调用该方法发送。但是也可主动调用该方法 */
+	public void autoSendable() throws Exception {
+		if (isSended) {
+			return;
+		}
 
-		// 设置信息
-		status(status).content(result.toJSONString());
+		ChannelFuture lastFuture = null;
+		if (content instanceof File) {
+			// 文件
+			File file = (File) content;
+			try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
+				long fileLength = raf.length();
+				// 设置内容长度
+				headers().set(CONTENT_LENGTH, fileLength);
+				// 设置文件类型
+				headers().set(CONTENT_TYPE, new MimetypesFileTypeMap().getContentType(file.getPath()));
+				// 设置缓存
+				dataAndCache(file.lastModified(), Cache_Seconds);
 
-		// 以错误状态信息响应给客户端，需要关闭连接
-		ctx.writeAndFlush(setUpResponse(true)).addListener(ChannelFutureListener.CLOSE);
+				// 写入包含文件类型描述相关信息的 response 。不需要包含 content
+				HttpResponse response = new DefaultHttpResponse(version, status, headers);
+				if (keepAlive) {
+					HttpUtil.setKeepAlive(response, true);
+				}
+				ctx.write(response);
+
+				// 写入具体文件内容,HttpChunkedInput 内部包含结束标记 LastHttpContent。但是不知道 write 没有
+				HttpChunkedInput chunkedInput = new HttpChunkedInput(new ChunkedFile(raf, 0, fileLength, 8192));
+				// 使用新的进程进行写入操作
+				ChannelProgressivePromise promise = ctx.newProgressivePromise();
+				// 文件下载进度监听
+				FileDownloadProgressiveFutureListener listener = new FileDownloadProgressiveFutureListener(file);
+				lastFuture = ctx.writeAndFlush(chunkedInput, promise).addListener(listener);
+			}
+		} else {
+			// 普通文本
+			FullHttpResponse fullHttpResponse = convertFullHttpResponse();
+			// 若是长连接且不需要关闭，响应头信息配置为 长连接
+			if (keepAlive) {
+				HttpUtil.setKeepAlive(fullHttpResponse, true);
+			}
+			lastFuture = ctx.writeAndFlush(fullHttpResponse);
+		}
+
+		// 不是长连接。需要关闭
+		if (!keepAlive) {
+			lastFuture.addListener(ChannelFutureListener.CLOSE);
+		}
+		isSended = true;
 	}
-	private FullHttpResponse setUpResponse(boolean close) {
+
+	private FullHttpResponse convertFullHttpResponse() {
 		ByteBuf tempByteBuf = (ByteBuf) content;
 		headers.set(HttpHeaderNames.CONTENT_LENGTH, tempByteBuf.readableBytes());
 		headers.set(HttpHeaderNames.CONTENT_ENCODING, charset);
-
-		FullHttpResponse response = new DefaultFullHttpResponse(version, status, tempByteBuf, headers, new DefaultHttpHeaders());
-		HttpUtil.setKeepAlive(response, !close && keepAlive);
-		return response;
+		return new DefaultFullHttpResponse(version, status, tempByteBuf, headers, new DefaultHttpHeaders());
 	}
 
 	private static final class FileDownloadProgressiveFutureListener implements ChannelProgressiveFutureListener {

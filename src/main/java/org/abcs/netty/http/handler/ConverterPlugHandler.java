@@ -52,32 +52,37 @@ public class ConverterPlugHandler extends SimpleChannelInboundHandler<FullHttpRe
 		// 构建 request 和 response
 		HttpServletRequest request = HttpServletRequest.builder(ctx, req);
 		HttpServletResponse response = HttpServletResponse.builder(ctx, request);
-
-		// 解码失败的原因可能是向服务器发送的数据太大。如 get 请求在 url 中存放的字节数有限
-		if (!req.decoderResult().isSuccess()) {
-			response.sendBadRequest();
-			return;
-		}
-		if (HttpUtil.is100ContinueExpected(req)) {
-			ctx.write(new DefaultFullHttpResponse(HTTP_1_1, CONTINUE));
-		}
-
-		// 进入过滤器处理中断，不进入 servlet
-		if (!doFilter(request, response)) {
-			return;
-		}
-		// 进入 servlet 处理，无此 servlet 处理
-		if (!doServlet(request, response)) {
-			// 进入文件 servlet 处理....
-			// http://127.0.0.1:8080/?op=file
-			Object object = request.params().get("op");
-			if ("/".equals(request.uri()) && !"file".equals(object)) {
-				homeServlet.service(request, response);
-			} else {
-				// TODO 在内部使用时，需要去除 uri 中的 ?op=file
-				fileServlet.service(request, response);
+		try {
+			// 解码失败的原因可能是向服务器发送的数据太大。如 get 请求在 url 中存放的字节数有限
+			if (!req.decoderResult().isSuccess()) {
+				response.sendBadRequest();
+				return;
 			}
-			return;
+			if (HttpUtil.is100ContinueExpected(req)) {
+				ctx.write(new DefaultFullHttpResponse(HTTP_1_1, CONTINUE));
+			}
+
+			// 进入过滤器处理中断，不进入 servlet
+			if (!doFilter(request, response)) {
+				return;
+			}
+			// 进入 servlet 处理，无此 servlet 处理
+			if (!doServlet(request, response)) {
+				// 进入文件 servlet 处理....
+				// http://127.0.0.1:8080/?op=file
+				Object object = request.params().get("op");
+				if ("/".equals(request.uri()) && !"file".equals(object)) {
+					homeServlet.service(request, response);
+				} else {
+					// TODO 在内部使用时，需要去除 uri 中的 ?op=file
+					fileServlet.service(request, response);
+				}
+				return;
+			}
+		} finally {
+			if (response != null) {
+				response.autoSendable();
+			}
 		}
 
 		JSONObject result = new JSONObject();
