@@ -1,6 +1,7 @@
 package org.abcs.netty.http.handler;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.CONTINUE;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 import org.abcs.netty.http.AbcsNettyHttpServerSetting;
@@ -10,17 +11,22 @@ import org.abcs.netty.http.servlet.HttpServletRequest;
 import org.abcs.netty.http.servlet.HttpServletResponse;
 import org.abcs.netty.http.servlet.def.FileServlet;
 import org.abcs.netty.http.servlet.def.HomeServlet;
-import org.abcs.netty.http.util.SendError;
 import org.apache.log4j.Logger;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpUtil;
+import io.netty.util.CharsetUtil;
 
 /**
  * @作者 Mitkey
@@ -43,18 +49,19 @@ public class ConverterPlugHandler extends SimpleChannelInboundHandler<FullHttpRe
 
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest req) throws Exception {
+		// 构建 request 和 response
+		HttpServletRequest request = HttpServletRequest.builder(ctx, req);
+		HttpServletResponse response = HttpServletResponse.builder(ctx, request);
+
 		// 解码失败的原因可能是向服务器发送的数据太大。如 get 请求在 url 中存放的字节数有限
 		if (!req.decoderResult().isSuccess()) {
-			SendError.sendBadRequest(ctx);
+			response.sendBadRequest();
 			return;
 		}
 		if (HttpUtil.is100ContinueExpected(req)) {
 			ctx.write(new DefaultFullHttpResponse(HTTP_1_1, CONTINUE));
 		}
 
-		// 构建 request 和 response
-		HttpServletRequest request = HttpServletRequest.builder(ctx, req);
-		HttpServletResponse response = HttpServletResponse.builder(ctx, request);
 		// 进入过滤器处理中断，不进入 servlet
 		if (!doFilter(request, response)) {
 			return;
@@ -83,7 +90,10 @@ public class ConverterPlugHandler extends SimpleChannelInboundHandler<FullHttpRe
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
 		LOGGER.error(ctx.channel() + " exceptionCaught", cause);
 		if (ctx.channel().isActive()) {
-			SendError.sendServerError(ctx);
+			ByteBuf byteBuf = Unpooled.copiedBuffer("Failure: " + INTERNAL_SERVER_ERROR + "\r\n", CharsetUtil.UTF_8);
+			FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR, byteBuf);
+			response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8");
+			ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
 		}
 	}
 

@@ -1,7 +1,5 @@
 package org.abcs.netty.http.servlet;
 
-import org.abcs.netty.http.util.SendError;
-
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 
@@ -23,7 +21,7 @@ public abstract class HttpServlet {
 				doPost(request, response);
 				break;
 			case Other :
-				SendError.sendNoImplemented(request.handlerContext(), "server no implemented this method");
+				response.sendNoImplemented("server no implemented this method");
 				break;
 		}
 	}
