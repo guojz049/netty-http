@@ -1,7 +1,7 @@
 package org.abcs.netty;
 
-import org.abcs.netty.http.AbcsNettyHttpServer;
-import org.abcs.netty.http.AbcsNettyHttpServerSetting;
+import org.abcs.netty.http.ABCSServer;
+import org.abcs.netty.http.ABCSServerConfig;
 import org.apache.log4j.PropertyConfigurator;
 
 /**
@@ -19,9 +19,9 @@ public class Main {
 			PropertyConfigurator.configureAndWatch(configFilename);
 		}
 
-		AbcsNettyHttpServerSetting setting = new AbcsNettyHttpServerSetting();
-		setting.setOpenConnectionLog(true).setOpenCors(true).setOpenIoLog(false).openDir(true);
-		new AbcsNettyHttpServer(setting).run();
+		ABCSServerConfig config = new ABCSServerConfig();
+		config.cnLog(true).cors(true).ioLog(false).dirList(true);
+		new ABCSServer(config).run();
 	}
 
 }

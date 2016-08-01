@@ -8,7 +8,7 @@ import java.text.ParseException;
 import java.util.Date;
 import java.util.regex.Pattern;
 
-import org.abcs.netty.http.AbcsNettyHttpServerSetting;
+import org.abcs.netty.http.ABCSServerConfig;
 import org.abcs.netty.http.servlet.HttpServlet;
 import org.abcs.netty.http.servlet.HttpServletRequest;
 import org.abcs.netty.http.servlet.HttpServletResponse;
@@ -24,9 +24,9 @@ public class FileServlet extends HttpServlet {
 	private static final Pattern Insecure_Uri = Pattern.compile(".*[<>&\"].*");
 	private static final Pattern Allowed_File_Name = Pattern.compile("[A-Za-z0-9][-_A-Za-z0-9\\.]*");
 
-	private AbcsNettyHttpServerSetting config;
+	private ABCSServerConfig config;
 
-	public FileServlet(AbcsNettyHttpServerSetting config) {
+	public FileServlet(ABCSServerConfig config) {
 		super();
 		this.config = config;
 	}
@@ -59,7 +59,7 @@ public class FileServlet extends HttpServlet {
 		}
 
 		// 若已开启目录列表查看，且该路径为文件夹
-		if (config.openDirList() && file.isDirectory()) {
+		if (config.dirList() && file.isDirectory()) {
 			if (uriString.endsWith("/")) {
 				// 响应目录列表
 				responseDirListing(response, file);

@@ -15,7 +15,7 @@ import io.netty.util.internal.SystemPropertyUtil;
  * @类说明:
  * @版本 xx
  */
-public class AbcsNettyHttpServerSetting {
+public class ABCSServerConfig {
 	public static final String MappingAll = "/*";
 
 	/** 服务端口，默认为 8080 */
@@ -23,63 +23,63 @@ public class AbcsNettyHttpServerSetting {
 	/** 资源的根目录，默认与工作目录同级 */
 	private File root = new File(SystemPropertyUtil.get("user.dir"));
 	/** 开启资源目录列表查看，默认关闭 */
-	private boolean openDirList = false;
+	private boolean dirList = false;
 	/** 开启连接日志，默认关闭 */
-	private boolean openConnectionLog = false;
+	private boolean cnLog = false;
 	/** 开启 IO 日志，默认关闭 */
-	private boolean openIoLog = false;
+	private boolean ioLog = false;
 	/** 开启跨域，默认关闭 */
-	private boolean openCors = false;
+	private boolean cors = false;
 	/** servlet 集 */
 	private Map<String, HttpServlet> servletMaps = new ConcurrentHashMap<String, HttpServlet>();
 	/** filter 集 */
 	private Map<String, HttpFilter> filterMaps = new ConcurrentHashMap<String, HttpFilter>();
 
 	// ================================ setting and getting ================================
-	public int getPort() {
+	public int port() {
 		return port;
 	}
-	public AbcsNettyHttpServerSetting setPort(int port) {
+	public ABCSServerConfig port(int port) {
 		this.port = port;
 		return this;
 	}
-	public boolean isOpenConnectionLog() {
-		return openConnectionLog;
+	public boolean cnLog() {
+		return cnLog;
 	}
-	public AbcsNettyHttpServerSetting setOpenConnectionLog(boolean openConnectionLog) {
-		this.openConnectionLog = openConnectionLog;
+	public ABCSServerConfig cnLog(boolean cnLog) {
+		this.cnLog = cnLog;
 		return this;
 	}
-	public boolean isOpenIoLog() {
-		return openIoLog;
+	public boolean ioLog() {
+		return ioLog;
 	}
-	public AbcsNettyHttpServerSetting setOpenIoLog(boolean openIoLog) {
-		this.openIoLog = openIoLog;
+	public ABCSServerConfig ioLog(boolean ioLog) {
+		this.ioLog = ioLog;
 		return this;
 	}
-	public boolean isOpenCors() {
-		return openCors;
+	public boolean cors() {
+		return cors;
 	}
-	public AbcsNettyHttpServerSetting setOpenCors(boolean openCors) {
-		this.openCors = openCors;
+	public ABCSServerConfig cors(boolean cors) {
+		this.cors = cors;
 		return this;
 	}
 
-	public AbcsNettyHttpServerSetting openDir(boolean openDirList) {
-		this.openDirList = openDirList;
+	public ABCSServerConfig dirList(boolean dirList) {
+		this.dirList = dirList;
 		return this;
 	}
-	public boolean openDirList() {
-		return openDirList;
+	public boolean dirList() {
+		return dirList;
 	}
-	public AbcsNettyHttpServerSetting rootDir(String root) {
+	public ABCSServerConfig rootDir(String root) {
 		if (root == null || root.trim().length() == 0) {
 			throw new IllegalArgumentException("root path can not null");
 		}
 		rootDir(new File(root));
 		return this;
 	}
-	public AbcsNettyHttpServerSetting rootDir(File root) {
+	public ABCSServerConfig rootDir(File root) {
 		if (root == null) {
 			throw new IllegalArgumentException("root dir can not null");
 		}
@@ -106,7 +106,7 @@ public class AbcsNettyHttpServerSetting {
 		return root == null;
 	}
 
-	public AbcsNettyHttpServerSetting mappingServlet(String path, Class<? extends HttpServlet> servletClass) {
+	public ABCSServerConfig mappingServlet(String path, Class<? extends HttpServlet> servletClass) {
 		path = checkPathAndClass(path, servletClass);
 
 		synchronized (servletClass) {
@@ -125,7 +125,7 @@ public class AbcsNettyHttpServerSetting {
 		return servletMaps.get(path);
 	}
 
-	public AbcsNettyHttpServerSetting mappingFilter(String path, Class<? extends HttpFilter> filterClass) {
+	public ABCSServerConfig mappingFilter(String path, Class<? extends HttpFilter> filterClass) {
 		path = checkPathAndClass(path, filterClass);
 
 		synchronized (filterClass) {

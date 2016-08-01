@@ -4,7 +4,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.CONTINUE;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
-import org.abcs.netty.http.AbcsNettyHttpServerSetting;
+import org.abcs.netty.http.ABCSServerConfig;
 import org.abcs.netty.http.servlet.HttpFilter;
 import org.abcs.netty.http.servlet.HttpServlet;
 import org.abcs.netty.http.servlet.HttpServletRequest;
@@ -39,9 +39,9 @@ public class ConverterPlugHandler extends SimpleChannelInboundHandler<FullHttpRe
 
 	private final HttpServlet fileServlet;
 	private final HttpServlet homeServlet;
-	private AbcsNettyHttpServerSetting config;
+	private ABCSServerConfig config;
 
-	public ConverterPlugHandler(AbcsNettyHttpServerSetting config) {
+	public ConverterPlugHandler(ABCSServerConfig config) {
 		this.config = config;
 		this.fileServlet = new FileServlet(config);
 		this.homeServlet = new HomeServlet();
@@ -111,7 +111,7 @@ public class ConverterPlugHandler extends SimpleChannelInboundHandler<FullHttpRe
 
 	private boolean doFilter(HttpServletRequest request, HttpServletResponse response) throws Exception {
 		// 查找全局过滤器
-		HttpFilter httpFilter = config.matchingFilter(AbcsNettyHttpServerSetting.MappingAll);
+		HttpFilter httpFilter = config.matchingFilter(ABCSServerConfig.MappingAll);
 		// 若全局过滤器中断
 		if (httpFilter != null && !httpFilter.doFilter(request, response)) {
 			return false;

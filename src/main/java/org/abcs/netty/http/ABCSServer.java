@@ -30,15 +30,15 @@ import io.netty.handler.stream.ChunkedWriteHandler;
  * @类说明:
  * @版本 xx
  */
-public class AbcsNettyHttpServer {
-	private static final Logger LOGGER = Logger.getLogger(AbcsNettyHttpServer.class);
+public class ABCSServer {
+	private static final Logger LOGGER = Logger.getLogger(ABCSServer.class);
 	private static final String PRX = "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓";
 
-	private AbcsNettyHttpServerSetting setting = new AbcsNettyHttpServerSetting();
+	private ABCSServerConfig config = new ABCSServerConfig();
 
-	public AbcsNettyHttpServer(AbcsNettyHttpServerSetting setting) {
+	public ABCSServer(ABCSServerConfig config) {
 		super();
-		this.setting = setting;
+		this.config = config;
 	}
 
 	public void run() throws Exception {
@@ -60,13 +60,13 @@ public class AbcsNettyHttpServer {
 					.childOption(ChannelOption.TCP_NODELAY, true) // 关闭 Nagle算法,提高响应速度
 					.childHandler(new MyChannelInitializer());// 创建 childHandler 来处理每一个新连接请求，通过 initChannel() 方法
 
-			if (setting.isOpenConnectionLog()) {
+			if (config.cnLog()) {
 				// 开启连接日志。【在 handler 中和 childHandler 中添加的作用是不一样的。handler 是针对连接，childHandler 是 io 操作】
 				bootstrap.handler(new LoggingHandler(LogLevel.INFO));
 			}
 
 			// 绑定到指定端口，通过调用 sync 同步方法阻塞直到绑定完成，完成后获取 channel
-			int port = setting.getPort();
+			int port = config.port();
 			Channel channel = bootstrap.bind(port).sync().channel();
 
 			// channel.localAddress(); // 本地为：0.0.0.0/0.0.0.0:port
@@ -90,7 +90,7 @@ public class AbcsNettyHttpServer {
 		public void initChannel(SocketChannel ch) throws Exception {
 			ChannelPipeline pipeline = ch.pipeline();
 			// 是否开启每个连接的 io 操作日志
-			if (setting.isOpenIoLog()) {
+			if (config.ioLog()) {
 				pipeline.addLast(new LoggingHandler(LogLevel.INFO));
 			}
 			// http content 和 msg 压缩
@@ -103,7 +103,7 @@ public class AbcsNettyHttpServer {
 			pipeline.addLast(new ChunkedWriteHandler());
 			// 是否开启跨域。若使用了原始自带的跨域处理 handler，则向客户端 write 数据时会 FLUSH 2 次
 			// 具体代码为 CorsHandler 中的 public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise promise)
-			if (setting.isOpenCors()) {
+			if (config.cors()) {
 				// 跨域所有资源（使用 *）、运行请求头中 origin 为 null、运行 cookie 使用
 				CorsConfig corsConfig = CorsConfigBuilder.forAnyOrigin().allowNullOrigin().allowCredentials().build();
 				// 添加跨域处理 handler
@@ -111,7 +111,7 @@ public class AbcsNettyHttpServer {
 			}
 
 			// netty http 转换器 handler
-			pipeline.addLast(new ConverterPlugHandler(setting));
+			pipeline.addLast(new ConverterPlugHandler(config));
 		}
 	}
 }
