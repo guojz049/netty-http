@@ -9,6 +9,7 @@ import org.abcs.netty.http.servlet.HttpServlet;
 import org.abcs.netty.http.servlet.HttpServletRequest;
 import org.abcs.netty.http.servlet.HttpServletResponse;
 import org.abcs.netty.http.servlet.def.FileServlet;
+import org.abcs.netty.http.servlet.def.HomeServlet;
 import org.abcs.netty.http.util.SendError;
 import org.apache.log4j.Logger;
 
@@ -30,12 +31,14 @@ import io.netty.handler.codec.http.HttpUtil;
 public class ConverterPlugHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 	private static final Logger LOGGER = Logger.getLogger(ConverterPlugHandler.class);
 
-	private final FileServlet fileServlet = new FileServlet();
+	private final HttpServlet fileServlet;
+	private final HttpServlet homeServlet;
 	private AbcsNettyHttpServerSetting config;
 
 	public ConverterPlugHandler(AbcsNettyHttpServerSetting config) {
 		this.config = config;
-		this.fileServlet.setConfig(config);
+		this.fileServlet = new FileServlet(config);
+		this.homeServlet = new HomeServlet();
 	}
 
 	@Override
@@ -59,7 +62,13 @@ public class ConverterPlugHandler extends SimpleChannelInboundHandler<FullHttpRe
 		// 进入 servlet 处理，无此 servlet 处理
 		if (!doServlet(httpServletRequest, httpServletResponse)) {
 			// 进入文件 servlet 处理....
-			fileServlet.service(httpServletRequest, httpServletResponse);
+			// http://127.0.0.1:8080/?op=file
+			Object object = httpServletRequest.params().get("op");
+			if ("file".equals(object)) {
+				fileServlet.service(httpServletRequest, httpServletResponse);
+			} else {
+				homeServlet.service(httpServletRequest, httpServletResponse);
+			}
 			return;
 		}
 

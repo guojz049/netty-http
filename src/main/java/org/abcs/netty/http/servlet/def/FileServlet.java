@@ -26,7 +26,8 @@ public class FileServlet extends HttpServlet {
 
 	private AbcsNettyHttpServerSetting config;
 
-	public void setConfig(AbcsNettyHttpServerSetting config) {
+	public FileServlet(AbcsNettyHttpServerSetting config) {
+		super();
 		this.config = config;
 	}
 
