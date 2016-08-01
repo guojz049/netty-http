@@ -44,7 +44,8 @@ public class FileServlet extends HttpServlet {
 			return;
 		}
 
-		String uriString = request.uri();
+		// TODO 需要替换掉 uri 中的 ?op=file
+		String uriString = request.uri().replace("?op=file", "");
 		File file = sanitizeUri(uriString);
 		// uri 不安全的
 		if (file == null) {

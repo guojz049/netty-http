@@ -192,7 +192,7 @@ public class HttpServletResponse {
 				// 使用新的进程进行写入操作
 				ChannelProgressivePromise promise = ctx.newProgressivePromise();
 				// 文件下载进度监听
-				FileDownloadProgressiveFutureListener listener = new FileDownloadProgressiveFutureListener();
+				FileDownloadProgressiveFutureListener listener = new FileDownloadProgressiveFutureListener(file);
 				future = ctx.writeAndFlush(chunkedInput, promise).addListener(listener);
 			}
 		} else {
@@ -286,17 +286,21 @@ public class HttpServletResponse {
 	}
 
 	private static final class FileDownloadProgressiveFutureListener implements ChannelProgressiveFutureListener {
+		private String filePath;
+		public FileDownloadProgressiveFutureListener(File file) {
+			filePath = file.toString();
+		}
 		@Override
 		public void operationProgressed(ChannelProgressiveFuture future, long progress, long total) {
 			if (total < 0) { // total unknown
-				LOGGER.info(future.channel() + " download transfer progress：" + progress);
+				LOGGER.info(future.channel() + "【" + filePath + "】" + " download transfer progress：" + progress);
 			} else {
-				LOGGER.info(future.channel() + " download transfer progress：" + progress + " / " + total);
+				LOGGER.info(future.channel() + "【" + filePath + "】" + " download transfer progress：" + progress + " / " + total);
 			}
 		}
 		@Override
 		public void operationComplete(ChannelProgressiveFuture future) {
-			LOGGER.info(future.channel() + " download transfer complete.");
+			LOGGER.info(future.channel() + "【" + filePath + "】" + " download transfer complete.");
 		}
 	}
 

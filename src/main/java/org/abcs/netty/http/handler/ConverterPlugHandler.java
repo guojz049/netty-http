@@ -42,39 +42,40 @@ public class ConverterPlugHandler extends SimpleChannelInboundHandler<FullHttpRe
 	}
 
 	@Override
-	protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
+	protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest req) throws Exception {
 		// 解码失败的原因可能是向服务器发送的数据太大。如 get 请求在 url 中存放的字节数有限
-		if (!request.decoderResult().isSuccess()) {
+		if (!req.decoderResult().isSuccess()) {
 			SendError.sendBadRequest(ctx);
 			return;
 		}
-		if (HttpUtil.is100ContinueExpected(request)) {
+		if (HttpUtil.is100ContinueExpected(req)) {
 			ctx.write(new DefaultFullHttpResponse(HTTP_1_1, CONTINUE));
 		}
 
 		// 构建 request 和 response
-		HttpServletRequest httpServletRequest = HttpServletRequest.builder(ctx, request);
-		HttpServletResponse httpServletResponse = HttpServletResponse.builder(ctx, httpServletRequest);
+		HttpServletRequest request = HttpServletRequest.builder(ctx, req);
+		HttpServletResponse response = HttpServletResponse.builder(ctx, request);
 		// 进入过滤器处理中断，不进入 servlet
-		if (!doFilter(httpServletRequest, httpServletResponse)) {
+		if (!doFilter(request, response)) {
 			return;
 		}
 		// 进入 servlet 处理，无此 servlet 处理
-		if (!doServlet(httpServletRequest, httpServletResponse)) {
+		if (!doServlet(request, response)) {
 			// 进入文件 servlet 处理....
 			// http://127.0.0.1:8080/?op=file
-			Object object = httpServletRequest.params().get("op");
-			if ("file".equals(object)) {
-				fileServlet.service(httpServletRequest, httpServletResponse);
+			Object object = request.params().get("op");
+			if ("/".equals(request.uri()) && !"file".equals(object)) {
+				homeServlet.service(request, response);
 			} else {
-				homeServlet.service(httpServletRequest, httpServletResponse);
+				// TODO 在内部使用时，需要去除 uri 中的 ?op=file
+				fileServlet.service(request, response);
 			}
 			return;
 		}
 
 		JSONObject result = new JSONObject();
-		result.put("request", httpServletRequest.toJson());
-		result.put("response", httpServletResponse.toJson());
+		result.put("request", request.toJson());
+		result.put("response", response.toJson());
 		throw new RuntimeException("服务器逻辑错误，不应该进入该流程。 request 与 response：" + JSON.toJSONString(result, true));
 	}
 
