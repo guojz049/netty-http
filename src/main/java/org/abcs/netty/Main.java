@@ -20,7 +20,7 @@ public class Main {
 		}
 
 		ABCSServerConfig config = new ABCSServerConfig();
-		config.cnLog(true).cors(true).ioLog(false).dirList(true);
+		config.cnLog(true).cors(true).ioLog(false).rootDir("E:\\development about\\Open Source Project\\netty\\jar\\netty-4.0.33.Final\\javadoc\\netty-all-4.0.33.Final-javadoc");
 		new ABCSServer(config).run();
 	}
 

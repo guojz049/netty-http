@@ -12,9 +12,6 @@ import org.abcs.netty.http.servlet.HttpServletResponse;
 import org.abcs.netty.http.servlet.def.FileServlet;
 import org.apache.log4j.Logger;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
@@ -74,11 +71,6 @@ public class ConverterPlugHandler extends SimpleChannelInboundHandler<FullHttpRe
 				response.autoSendable();
 			}
 		}
-
-		JSONObject result = new JSONObject();
-		result.put("request", request.toJson());
-		result.put("response", response.toJson());
-		throw new RuntimeException("服务器逻辑错误，不应该进入该流程。 request 与 response：" + JSON.toJSONString(result, true));
 	}
 
 	@Override
