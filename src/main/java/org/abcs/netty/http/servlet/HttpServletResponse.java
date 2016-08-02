@@ -1,7 +1,6 @@
 package org.abcs.netty.http.servlet;
 
 import static io.netty.handler.codec.http.HttpHeaderNames.CACHE_CONTROL;
-import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpHeaderNames.DATE;
 import static io.netty.handler.codec.http.HttpHeaderNames.EXPIRES;
@@ -15,14 +14,12 @@ import static io.netty.handler.codec.http.HttpResponseStatus.NOT_IMPLEMENTED;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_MODIFIED;
 
 import java.io.File;
-import java.io.RandomAccessFile;
+import java.net.URLConnection;
 import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
-
-import javax.activation.MimetypesFileTypeMap;
 
 import org.apache.log4j.Logger;
 
@@ -43,6 +40,7 @@ import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpChunkedInput;
 import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -62,7 +60,7 @@ import io.netty.util.CharsetUtil;
 public class HttpServletResponse {
 	public static final SimpleDateFormat Date_Format = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.US);
 	private static final Logger LOGGER = Logger.getLogger(HttpServletResponse.class);
-	private static final int Cache_Seconds = 60;
+	private static final int Cache_Seconds = 2 * 60;// 2分钟的缓存时间
 
 	private ChannelHandlerContext ctx;
 	private HttpServletRequest servletRequest;
@@ -235,30 +233,30 @@ public class HttpServletResponse {
 		if (content instanceof File) {
 			// 文件
 			File file = (File) content;
-			try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
-				long fileLength = raf.length();
-				// 设置内容长度
-				headers().set(CONTENT_LENGTH, fileLength);
-				// 设置文件类型
-				headers().set(CONTENT_TYPE, new MimetypesFileTypeMap().getContentType(file.getPath()));
-				// 设置缓存
-				dataAndCache(file.lastModified(), Cache_Seconds);
+			// 设置为分块传输，当前文件内容长度不确定时使用
+			// 因为使用的是 HttpChunkedInput 分块传输，分割传输的长度是不确定的。
+			// 不要同时配置 content_length 属性
+			headers().set(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);
+			// 设置文件类型
+			headers().set(CONTENT_TYPE, parseFileMimeType(file.getName()));
+			// 设置缓存
+			dataAndCache(file.lastModified(), Cache_Seconds);
 
-				// 写入包含文件类型描述相关信息的 response 。不需要包含 content
-				HttpResponse response = new DefaultHttpResponse(version, status, headers);
-				if (keepAlive) {
-					HttpUtil.setKeepAlive(response, true);
-				}
-				ctx.write(response);
-
-				// 写入具体文件内容,HttpChunkedInput 内部包含结束标记 LastHttpContent。但是不知道 write 没有
-				HttpChunkedInput chunkedInput = new HttpChunkedInput(new ChunkedFile(raf, 0, fileLength, 8192));
-				// 使用新的进程进行写入操作
-				ChannelProgressivePromise promise = ctx.newProgressivePromise();
-				// 文件下载进度监听
-				FileDownloadProgressiveFutureListener listener = new FileDownloadProgressiveFutureListener(file);
-				lastFuture = ctx.writeAndFlush(chunkedInput, promise).addListener(listener);
+			// 写入包含文件类型描述相关信息的 response 。不需要包含 content
+			HttpResponse response = new DefaultHttpResponse(version, status, headers);
+			if (keepAlive) {
+				HttpUtil.setKeepAlive(response, true);
 			}
+			ctx.write(response);
+
+			// 写入具体文件内容,HttpChunkedInput 内部包含结束标记 LastHttpContent。
+			HttpChunkedInput chunkedInput = new HttpChunkedInput(new ChunkedFile(file));
+			// 使用新的进程进行写入操作
+			ChannelProgressivePromise promise = ctx.newProgressivePromise();
+			// 文件下载进度监听
+			FileDownloadProgressiveFutureListener listener = new FileDownloadProgressiveFutureListener();
+
+			lastFuture = ctx.writeAndFlush(chunkedInput, promise).addListener(listener);
 		} else {
 			// 普通文本
 			FullHttpResponse fullHttpResponse = convertFullHttpResponse();
@@ -283,22 +281,24 @@ public class HttpServletResponse {
 		return new DefaultFullHttpResponse(version, status, tempByteBuf, headers, new DefaultHttpHeaders());
 	}
 
-	private static final class FileDownloadProgressiveFutureListener implements ChannelProgressiveFutureListener {
-		private String filePath;
-		public FileDownloadProgressiveFutureListener(File file) {
-			filePath = file.toString();
+	/** 根据文件名字解析出文件类型.默认 二进制 格式 */
+	private String parseFileMimeType(String fileName) {
+		String typeFor = URLConnection.getFileNameMap().getContentTypeFor(fileName);
+		if (typeFor == null || typeFor.trim().length() == 0) {
+			// 无法识别默认使用数据流
+			typeFor = "application/octet-stream";
 		}
+		return typeFor;
+	}
+
+	private static final class FileDownloadProgressiveFutureListener implements ChannelProgressiveFutureListener {
 		@Override
 		public void operationProgressed(ChannelProgressiveFuture future, long progress, long total) {
-			if (total < 0) { // total unknown
-				LOGGER.info(future.channel() + "【" + filePath + "】" + " download transfer progress：" + progress);
-			} else {
-				LOGGER.info(future.channel() + "【" + filePath + "】" + " download transfer progress：" + progress + " / " + total);
-			}
+			LOGGER.info(future.channel() + " download transfer progress：" + progress + " / " + total);
 		}
 		@Override
 		public void operationComplete(ChannelProgressiveFuture future) {
-			LOGGER.info(future.channel() + "【" + filePath + "】" + " download transfer complete.");
+			LOGGER.info(future.channel() + " download transfer complete.");
 		}
 	}
 
