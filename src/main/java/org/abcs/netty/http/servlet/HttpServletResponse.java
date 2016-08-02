@@ -1,12 +1,19 @@
 package org.abcs.netty.http.servlet;
 
 import static io.netty.handler.codec.http.HttpHeaderNames.CACHE_CONTROL;
+import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_ENCODING;
+import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpHeaderNames.DATE;
 import static io.netty.handler.codec.http.HttpHeaderNames.EXPIRES;
 import static io.netty.handler.codec.http.HttpHeaderNames.LAST_MODIFIED;
+import static io.netty.handler.codec.http.HttpHeaderNames.LOCATION;
+import static io.netty.handler.codec.http.HttpHeaderNames.SET_COOKIE;
+import static io.netty.handler.codec.http.HttpHeaderNames.TRANSFER_ENCODING;
+import static io.netty.handler.codec.http.HttpHeaderValues.CHUNKED;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
+import static io.netty.handler.codec.http.HttpResponseStatus.FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
@@ -39,8 +46,6 @@ import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpChunkedInput;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -118,12 +123,12 @@ public class HttpServletResponse {
 		if (cookie == null) {
 			throw new IllegalArgumentException("add cookie can not null");
 		}
-		headers.add(HttpHeaderNames.SET_COOKIE, ServerCookieEncoder.STRICT.encode(cookie));
+		headers.add(SET_COOKIE, ServerCookieEncoder.STRICT.encode(cookie));
 		return this;
 	}
 	/** 设置日期信息 */
 	public HttpServletResponse date(Date date) {
-		headers.set(HttpHeaderNames.DATE, Date_Format.format(date));
+		headers.set(DATE, Date_Format.format(date));
 		return this;
 	}
 	/** 设置日期和缓存信息 */
@@ -175,7 +180,7 @@ public class HttpServletResponse {
 	/** 302 重定向 */
 	public void sendRedirect(String newUri) {
 		// 重定向需要关闭 chanel
-		status(HttpResponseStatus.FOUND).keepAlive(false).headers().set(HttpHeaderNames.LOCATION, newUri);
+		status(FOUND).keepAlive(false).headers().set(LOCATION, newUri);
 	}
 	/** 403 已接受请求，但拒绝执行 */
 	public void sendForbidden(Object... des) {
@@ -236,7 +241,7 @@ public class HttpServletResponse {
 			// 设置为分块传输，当前文件内容长度不确定时使用
 			// 因为使用的是 HttpChunkedInput 分块传输，分割传输的长度是不确定的。
 			// 不要同时配置 content_length 属性
-			headers().set(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);
+			headers().set(TRANSFER_ENCODING, CHUNKED);
 			// 设置文件类型
 			headers().set(CONTENT_TYPE, parseFileMimeType(file.getName()));
 			// 设置缓存
@@ -276,8 +281,8 @@ public class HttpServletResponse {
 
 	private FullHttpResponse convertFullHttpResponse() {
 		ByteBuf tempByteBuf = (ByteBuf) content;
-		headers.set(HttpHeaderNames.CONTENT_LENGTH, tempByteBuf.readableBytes());
-		headers.set(HttpHeaderNames.CONTENT_ENCODING, charset);
+		headers.set(CONTENT_LENGTH, tempByteBuf.readableBytes());
+		headers.set(CONTENT_ENCODING, charset);
 		return new DefaultFullHttpResponse(version, status, tempByteBuf, headers, new DefaultHttpHeaders());
 	}
 
