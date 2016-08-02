@@ -22,7 +22,6 @@ import org.abcs.netty.http.servlet.HttpServletResponse;
 public class FileServlet extends HttpServlet {
 
 	private static final Pattern Insecure_Uri = Pattern.compile(".*[<>&\"].*");
-	private static final Pattern Allowed_File_Name = Pattern.compile("[A-Za-z0-9][-_A-Za-z0-9\\.]*");
 
 	private ABCSServerConfig config;
 
@@ -44,8 +43,7 @@ public class FileServlet extends HttpServlet {
 			return;
 		}
 
-		// TODO 需要替换掉 uri 中的 ?op=file
-		String uriString = request.uri().replace("?op=file", "");
+		String uriString = request.uri();
 		File file = sanitizeUri(uriString);
 		// uri 不安全的
 		if (file == null) {
@@ -58,20 +56,8 @@ public class FileServlet extends HttpServlet {
 			return;
 		}
 
-		// 若已开启目录列表查看，且该路径为文件夹
-		if (config.dirList() && file.isDirectory()) {
-			if (uriString.endsWith("/")) {
-				// 响应目录列表
-				responseDirListing(response, file);
-			} else {
-				// 重定向进入到 sendListing 方法处理
-				String newUri = uriString + '/';
-				response.sendRedirect(newUri);
-			}
-			return;
-		}
-
 		// 禁止非标准文件查看。若一个 file 不是文件夹，哪它也不会一定是标准文件
+		// 盘符的根目录也不是文件如 C:\\
 		if (!file.isFile()) {
 			response.sendForbidden("this request path not normal file");
 			return;
@@ -100,36 +86,6 @@ public class FileServlet extends HttpServlet {
 			}
 		}
 		return true;
-	}
-
-	private void responseDirListing(HttpServletResponse response, File dir) throws Exception {
-		String dirPath = dir.getPath();
-		StringBuilder buf = new StringBuilder();
-		buf.append("<!DOCTYPE html>\r\n")//
-				.append("<html><head><title>")//
-				.append("Listing of: ").append(dirPath).append("</title></head><body>\r\n")//
-				.append("<h3>Listing of: ")//
-				.append(dirPath)//
-				.append("</h3>\r\n")//
-				.append("<ul>")//
-				.append("<li><a href=\"../\">..</a></li>\r\n");
-		for (File file : dir.listFiles()) {
-			// 跳过隐藏的、不可读的文件
-			if (file.isHidden() || !file.canRead()) {
-				continue;
-			}
-			// 检测文件名是否合法
-			String name = file.getName();
-			if (!Allowed_File_Name.matcher(name).matches()) {
-				continue;
-			}
-			buf.append("<li><a href=\"").append(name).append("\">").append(name).append("</a></li>\r\n");
-		}
-		buf.append("</ul></body></html>\r\n");
-
-		response.keepAlive(false);
-		response.content(buf.toString());
-		response.contentTypeTextHtml();
 	}
 
 	// uri 安全监测

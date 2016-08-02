@@ -10,7 +10,6 @@ import org.abcs.netty.http.servlet.HttpServlet;
 import org.abcs.netty.http.servlet.HttpServletRequest;
 import org.abcs.netty.http.servlet.HttpServletResponse;
 import org.abcs.netty.http.servlet.def.FileServlet;
-import org.abcs.netty.http.servlet.def.HomeServlet;
 import org.apache.log4j.Logger;
 
 import com.alibaba.fastjson.JSON;
@@ -38,13 +37,11 @@ public class ConverterPlugHandler extends SimpleChannelInboundHandler<FullHttpRe
 	private static final Logger LOGGER = Logger.getLogger(ConverterPlugHandler.class);
 
 	private final HttpServlet fileServlet;
-	private final HttpServlet homeServlet;
 	private ABCSServerConfig config;
 
 	public ConverterPlugHandler(ABCSServerConfig config) {
 		this.config = config;
 		this.fileServlet = new FileServlet(config);
-		this.homeServlet = new HomeServlet();
 	}
 
 	@Override
@@ -69,14 +66,7 @@ public class ConverterPlugHandler extends SimpleChannelInboundHandler<FullHttpRe
 			// 进入 servlet 处理，无此 servlet 处理
 			if (!doServlet(request, response)) {
 				// 进入文件 servlet 处理....
-				// http://127.0.0.1:8080/?op=file
-				Object object = request.params().get("op");
-				if ("/".equals(request.uri()) && !"file".equals(object)) {
-					homeServlet.service(request, response);
-				} else {
-					// TODO 在内部使用时，需要去除 uri 中的 ?op=file
-					fileServlet.service(request, response);
-				}
+				fileServlet.service(request, response);
 				return;
 			}
 		} finally {

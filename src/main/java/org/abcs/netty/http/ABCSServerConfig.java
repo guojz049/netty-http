@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.abcs.netty.http.servlet.HttpFilter;
 import org.abcs.netty.http.servlet.HttpServlet;
+import org.abcs.netty.http.servlet.def.HomeServlet;
 
 import io.netty.util.internal.SystemPropertyUtil;
 
@@ -17,13 +18,12 @@ import io.netty.util.internal.SystemPropertyUtil;
  */
 public class ABCSServerConfig {
 	public static final String MappingAll = "/*";
+	public static final String HomeUri = "/";
 
 	/** 服务端口，默认为 8080 */
 	private int port = 8080;
 	/** 资源的根目录，默认与工作目录同级 */
 	private File root = new File(SystemPropertyUtil.get("user.dir"));
-	/** 开启资源目录列表查看，默认关闭 */
-	private boolean dirList = false;
 	/** 开启连接日志，默认关闭 */
 	private boolean cnLog = false;
 	/** 开启 IO 日志，默认关闭 */
@@ -35,6 +35,10 @@ public class ABCSServerConfig {
 	/** filter 集 */
 	private Map<String, HttpFilter> filterMaps = new ConcurrentHashMap<String, HttpFilter>();
 
+	public ABCSServerConfig() {
+		// 配置默认 / 路径为主页
+		mappingServlet(HomeUri, HomeServlet.class);
+	}
 	// ================================ setting and getting ================================
 	public int port() {
 		return port;
@@ -63,14 +67,6 @@ public class ABCSServerConfig {
 	public ABCSServerConfig cors(boolean cors) {
 		this.cors = cors;
 		return this;
-	}
-
-	public ABCSServerConfig dirList(boolean dirList) {
-		this.dirList = dirList;
-		return this;
-	}
-	public boolean dirList() {
-		return dirList;
 	}
 	public ABCSServerConfig rootDir(String root) {
 		if (root == null || root.trim().length() == 0) {

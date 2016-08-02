@@ -28,6 +28,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
+import org.abcs.netty.http.ABCSServerConfig;
 import org.apache.log4j.Logger;
 
 import com.alibaba.fastjson.JSON;
@@ -177,6 +178,10 @@ public class HttpServletResponse {
 		return this;
 	}
 
+	/** 302 重定向到主页 */
+	public void sendRedirectHome() {
+		sendRedirect(ABCSServerConfig.HomeUri);
+	}
 	/** 302 重定向 */
 	public void sendRedirect(String newUri) {
 		// 重定向需要关闭 chanel
