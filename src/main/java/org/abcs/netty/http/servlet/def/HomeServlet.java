@@ -18,7 +18,8 @@ public class HomeServlet extends HttpServlet {
 	private File file;
 
 	public HomeServlet() {
-		URL resource = HomeServlet.class.getClassLoader().getResource("index.html");
+		// URL resource = HomeServlet.class.getClassLoader().getResource("index.html");
+		URL resource = getClass().getResource("/index.html");
 		file = new File(resource.getFile());
 	}
 
