@@ -34,7 +34,7 @@ public class ABCSServer {
 	private static final Logger LOGGER = Logger.getLogger(ABCSServer.class);
 	private static final String PRX = "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓";
 
-	private ABCSServerConfig config = new ABCSServerConfig();
+	private ABCSServerConfig config;
 
 	public ABCSServer(ABCSServerConfig config) {
 		super();
