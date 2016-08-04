@@ -194,6 +194,10 @@ public class HttpServletRequest {
 		flagInitParams = true;
 		return paramsMap;
 	}
+	/** 获取 content */
+	public String content() {
+		return content;
+	}
 	/** 是否为表单提交 */
 	public boolean contentTypeIsXWwwFormUrlencoded() {
 		return request.headers().contains(CONTENT_TYPE, APPLICATION_X_WWW_FORM_URLENCODED, true);
