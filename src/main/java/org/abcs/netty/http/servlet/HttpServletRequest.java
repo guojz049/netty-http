@@ -196,6 +196,7 @@ public class HttpServletRequest {
 	}
 	/** 获取 content */
 	public String content() {
+		params();
 		return content;
 	}
 	/** 是否为表单提交 */
