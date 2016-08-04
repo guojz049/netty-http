@@ -33,6 +33,7 @@ import org.apache.log4j.Logger;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -171,10 +172,16 @@ public class HttpServletResponse {
 		content = Unpooled.copiedBuffer(str, charset);
 		return this;
 	}
+	/** 响应内容为普通文本 */
+	public HttpServletResponse content(byte[] bytes) {
+		contentTypeTextPlain();
+		content = Unpooled.copiedBuffer(bytes);
+		return this;
+	}
 	/** 响应内容为json */
 	public HttpServletResponse content(JSON json) {
 		contentTypeJson();
-		content(json.toJSONString());
+		content(JSON.toJSONBytes(json, SerializerFeature.DisableCircularReferenceDetect));
 		return this;
 	}
 
