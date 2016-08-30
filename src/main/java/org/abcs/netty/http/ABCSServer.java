@@ -51,14 +51,14 @@ public class ABCSServer {
 			// option 是针对连接，childOption 针对 io（请求）
 			ServerBootstrap bootstrap = new ServerBootstrap();
 			bootstrap.group(bossGroup, workerGroup)// 定义2个 EventLoop 组，boos 处理连接，worker 处理 io (请求)
-					.channel(NioServerSocketChannel.class) // 用于创建 channel 实例
+					.channel(NioServerSocketChannel.class) // 用于创建 channel 实例(一个新的 connection 即为一个新 channel)
 					.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5 * 1000)// 连接超时，单位毫秒
 					.option(ChannelOption.SO_TIMEOUT, 5 * 1000)// 操作超时时间
 					.option(ChannelOption.SO_BACKLOG, 1024) // 完成 tcp 3 次握手后的最大请求队列，先进先出
 					.option(ChannelOption.SO_REUSEADDR, false)// 废弃的连接，立即回收。不可立即使用
 					.childOption(ChannelOption.SO_KEEPALIVE, false) // 长连接
 					.childOption(ChannelOption.TCP_NODELAY, true) // 关闭 Nagle算法,提高响应速度
-					.childHandler(new MyChannelInitializer());// 创建 childHandler 来处理每一个新连接请求，通过 initChannel() 方法
+					.childHandler(new MyChannelInitializer());// 创建 childHandler 来进一步帮助用户配置 channel 通过 initChannel() 方法
 
 			if (config.cnLog()) {
 				// 开启连接日志。【在 handler 中和 childHandler 中添加的作用是不一样的。handler 是针对连接，childHandler 是 io 操作】
